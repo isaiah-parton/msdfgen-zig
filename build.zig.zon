@@ -37,8 +37,7 @@
     // internet connectivity.
     .dependencies = .{
         .freetype = .{
-            .url = "git+https://github.com/isaiah-parton/freetype-zig.git#ec081c87b3716490af43715e34862abc044006b2",
-            .hash = "freetype-2.13.3-gaALGoageADS6nCif5TUSGK-yDmsaOc6ZPORoU_487zc",
+            .path = "../freetype-zig"
         },
     },
     .paths = .{

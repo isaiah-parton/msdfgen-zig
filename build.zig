@@ -1,6 +1,7 @@
 const std = @import("std");
 
 pub fn build(b: *std.Build) !void {
+    var io = std.Io.Threaded.init(std.mem.Allocator.failing, .{});
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
@@ -16,26 +17,26 @@ pub fn build(b: *std.Build) !void {
     });
 
     // need to link this if not using zig or own allocator
-    const zigless_allocation_shim = b.addLibrary(.{
-        .name = "msdfgen-malloc-shim",
-        .root_module = b.createModule(.{
-            .target = target,
-            .optimize = optimize,
-            .link_libc = true,
-        }),
-        .version = version,
-    });
-    zigless_allocation_shim.addCSourceFile(.{
-        .file = b.path("src/memory.cpp"),
-        .flags = &.{
-            "-std=c++17",
-            "-fno-sanitize=undefined",
-        },
-    });
-    if (target.result.abi != .msvc) {
-        zigless_allocation_shim.root_module.link_libcpp = true;
-    }
-    b.installArtifact(zigless_allocation_shim);
+    // const zigless_allocation_shim = b.addLibrary(.{
+    //     .name = "msdfgen-malloc-shim",
+    //     .root_module = b.createModule(.{
+    //         .target = target,
+    //         .optimize = optimize,
+    //         .link_libc = true,
+    //     }),
+    //     .version = version,
+    // });
+    // zigless_allocation_shim.addCSourceFile(.{
+    //     .file = b.path("src/memory.cpp"),
+    //     .flags = &.{
+    //         "-std=c++17",
+    //         "-fno-sanitize=undefined",
+    //     },
+    // });
+    // if (target.result.abi != .msvc) {
+    //     zigless_allocation_shim.root_module.link_libcpp = true;
+    // }
+    // b.installArtifact(zigless_allocation_shim);
 
     const libgen = b.addLibrary(.{
         .name = "msdfgen",
@@ -55,8 +56,8 @@ pub fn build(b: *std.Build) !void {
     libgen.root_module.addCMacro("MSDFGEN_VERSION_MINOR", b.fmt("{}", .{version.minor}));
     libgen.root_module.addCMacro("MSDFGEN_VERSION_REVISION", b.fmt("{}", .{version.patch}));
 
-    libgen.linkLibrary(freetype_dep.artifact("freetype"));
-    libgen.addCSourceFiles(.{
+    libgen.root_module.linkLibrary(freetype_dep.artifact("freetype"));
+    libgen.root_module.addCSourceFiles(.{
         .root = b.path("core"),
         .files = &.{
             "contour-combiners.cpp",
@@ -90,7 +91,7 @@ pub fn build(b: *std.Build) !void {
             "-fno-sanitize=undefined",
         },
     });
-    libgen.addCSourceFiles(.{
+    libgen.root_module.addCSourceFiles(.{
         .root = b.path("ext"),
         .files = &.{
             "import-font.cpp",
@@ -129,7 +130,7 @@ pub fn build(b: *std.Build) !void {
         libatlasgen.root_module.link_libcpp = true;
     }
     const epoch_seconds: std.time.epoch.EpochSeconds = .{
-        .secs = @intCast(std.time.timestamp()),
+        .secs = @intCast(std.Io.Timestamp.now((io.io()), std.Io.Clock.real).toSeconds()),
     };
     const epoch_day = epoch_seconds.getEpochDay();
     libatlasgen.root_module.addCMacro("MSDF_ATLAS_NO_ARTERY_FONT", "1");
@@ -138,8 +139,8 @@ pub fn build(b: *std.Build) !void {
     libatlasgen.root_module.addCMacro("MSDF_ATLAS_VERSION_MINOR", b.fmt("{}", .{version.minor}));
     libatlasgen.root_module.addCMacro("MSDF_ATLAS_VERSION_REVISION", b.fmt("{}", .{version.patch}));
     libatlasgen.root_module.addCMacro("MSDF_ATLAS_COPYRIGHT_YEAR", b.fmt("{}", .{epoch_day.calculateYearDay().year}));
-    libatlasgen.linkLibrary(libgen);
-    libatlasgen.addCSourceFiles(.{
+    libatlasgen.root_module.linkLibrary(libgen);
+    libatlasgen.root_module.addCSourceFiles(.{
         .root = b.path("msdf-atlas-gen"),
         .files = &.{
             "artery-font-export.cpp",
